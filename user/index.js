@@ -2,10 +2,9 @@
 const express = require('express');
 const { Client } = require('pg');
 const bodyParser = require('body-parser');
-const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
-
+const bcrypt = require('bcrypt-nodejs');
 
 const dbConfig = require('./db_config');
 const { getTrackingRealTime, getVehicleByfleet, getDetailVehicle } = require('./tracking');
@@ -146,8 +145,17 @@ app.post('/api/list_geom', async (req, res) => {
     res.status(500).send('Internal Server Error ' + error);
   }
 });
-
-
+async function decode_pws(pws, hash) {
+  return new Promise((resolve, reject) => {
+      bcrypt.compare(pws, hash, (err, res) => {
+          if (err) {
+              reject(err);
+          } else {
+              resolve(res);
+          }
+      });
+  });
+}
 app.post('/api/get_login', async (req, res) => {
   try {
     const { user, pass } = req.body;
@@ -161,10 +169,7 @@ app.post('/api/get_login', async (req, res) => {
 
     if (userData) {
       const hashedPassword = userData.hash;
-
-      // Compare the provided password with the hashed password
-      const passwordMatch = await bcrypt.compare(pass, hashedPassword);
-
+      const passwordMatch = await decode_pws(pass, hashedPassword);
       if (passwordMatch) {
         // Generate JWT token
         const token = jwt.sign({ user: user }, JWT_TOKEN_SECRET, { expiresIn: '1d' });
